@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="서울·경기에서 인천공항·김포공항까지 부부공항택시 예상 요금을 조회하고 예약 문의를 보내는 페이지">
+<meta name="robots" content="index,follow">
+<title>부부공항택시 요금조회</title>
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)} img{max-width:100%} [hidden]{display:none!important}</style>
+</head>
+<body>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+  /* Layout: single column, phone-first, 560px max. Fare result styled as a meter receipt.
+     Palette: white ground, airport-sign blue (--ink), taxi yellow (--accent), road center-line motif. */
+  :root {
+    --bg: #f3f7fb;
+    --surface: #ffffff;
+    --surface-2: #f3f7fb;
+    --fg: #17212b;
+    --muted: #5f6c7a;
+    --line: #d9e2ec;
+    --accent: #ffcc33;
+    --accent-soft: #fff1bf;
+    --ink: #0b5fd1;
+    --ok: #1f7a4d;
+    --warn: #b4530a;
+    --warn-soft: #fff6e0;
+    color-scheme: light;
+    --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    --font-num: "IBM Plex Mono", "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 16px; line-height: 1.55; margin: 0; }
+  .wrap { max-width: 560px; margin: 0 auto; padding-block: 20px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 20px; }
+  header { display: grid; gap: 6px; }
+  .eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink); font-weight: 700; }
+  .roadline { height: 6px; border-radius: 3px; margin-top: 6px; background: repeating-linear-gradient(90deg, var(--accent) 0 22px, transparent 22px 38px); }
+  .hl { background: linear-gradient(transparent 58%, var(--accent) 58%); font-weight: 600; }
+  h1 { font-size: 24px; line-height: 1.25; margin: 0; text-wrap: balance; font-weight: 700; }
+  h2 { font-size: 17px; margin: 0; font-weight: 700; }
+  p { margin: 0; }
+  .lead { color: var(--muted); font-size: 15px; }
+  section.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px 16px; display: grid; gap: 14px; }
+  .field { display: grid; gap: 6px; min-width: 0; }
+  .field label { font-size: 13px; font-weight: 500; color: var(--muted); }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 380px) { .row { grid-template-columns: 1fr; } }
+  select, input, textarea { width: 100%; font: inherit; color: var(--fg); background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; min-width: 0; }
+  textarea { min-height: 72px; resize: vertical; }
+  select:focus, input:focus, textarea:focus, button:focus-visible, a.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg label { display: flex; align-items: center; justify-content: center; padding: 10px; cursor: pointer; font-size: 15px; background: var(--surface-2); color: var(--muted); }
+  .seg input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .seg input:checked + label { background: var(--ink); color: var(--surface); font-weight: 500; }
+  .seg input:focus-visible + label { outline: 2px solid var(--accent); outline-offset: -2px; }
+  button, a.btn { font: inherit; border: 0; border-radius: 8px; padding: 12px 14px; cursor: pointer; text-align: center; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-weight: 500; }
+  .btn-primary { background: var(--accent); color: #1a1200; width: 100%; font-size: 16px; }
+  .btn-ink { background: var(--ink); color: var(--surface); }
+  .btn-ghost { background: var(--surface-2); color: var(--fg); border: 1px solid var(--line); }
+  .btn-group { display: grid; gap: 8px; grid-template-columns: 1fr 1fr; }
+  .btn-group .full { grid-column: 1 / -1; }
+  .receipt { border-top: 2px dashed var(--line); border-bottom: 2px dashed var(--line); padding: 14px 4px; display: grid; gap: 8px; font-variant-numeric: tabular-nums; }
+  .receipt .title { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+  .line { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+  .line .k { color: var(--muted); font-size: 14px; }
+  .line .v { font-family: var(--font-num); font-size: 15px; text-align: right; }
+  .line.total { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 4px; }
+  .line.total .k { color: var(--fg); font-weight: 700; font-size: 15px; }
+  .line.total .v { font-size: 22px; font-weight: 600; color: var(--fg); }
+  .note { font-size: 13px; color: var(--muted); }
+  .notice { background: var(--warn-soft); color: var(--fg); border-left: 3px solid var(--warn); padding: 10px 12px; border-radius: 6px; font-size: 14px; }
+  .pill { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--fg); font-weight: 500; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .preview { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 12px; font-family: var(--font-num); font-size: 13px; white-space: pre-wrap; word-break: break-word; min-width: 0; }
+  .contact { display: grid; gap: 4px; }
+  .contact .num { font-family: var(--font-num); font-size: 18px; font-weight: 600; user-select: all; }
+  .check { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; }
+  .check input { width: 18px; height: 18px; margin-top: 3px; flex: 0 0 auto; }
+  .toast { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--surface); padding: 10px 16px; border-radius: 999px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: calc(100% - 32px); }
+  .toast.show { opacity: 1; }
+  dl.rules { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 0; font-size: 14px; }
+  dl.rules dt { color: var(--muted); white-space: nowrap; }
+  dl.rules dd { margin: 0; min-width: 0; }
+  footer { font-size: 12px; color: var(--muted); text-align: center; }
+  @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">부부공항택시</div>
+    <h1>우리 동네에서 공항까지, 예상 요금과 예약 문의를 한 번에</h1>
+    <p class="lead">서울 면허 개인택시 2대(아이오닉5)가 직접 모십니다. <span class="hl">요금은 택시 미터기 그대로</span>, 예약비·시외할증·대기료는 없습니다.</p>
+    <div class="roadline" aria-hidden="true"></div>
+  </header>
+
+  <section class="card" aria-labelledby="h-fare">
+    <h2 id="h-fare">1. 예상 요금 조회</h2>
+    <div class="field">
+      <label>이동 방향</label>
+      <div class="seg" role="radiogroup" aria-label="이동 방향">
+        <input type="radio" name="dir" id="dir-out" value="출국" checked><label for="dir-out">출국 (집 → 공항)</label>
+        <input type="radio" name="dir" id="dir-in" value="입국"><label for="dir-in">입국 (공항 → 집)</label>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label for="sido">출발 지역 (시·도)</label>
+        <select id="sido"></select>
+      </div>
+      <div class="field">
+        <label for="gu">구·시</label>
+        <select id="gu"></select>
+      </div>
+    </div>
+    <div class="field" id="dong-field" hidden>
+      <label for="dong">동 (선택)</label>
+      <select id="dong"></select>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label for="airport">공항</label>
+        <select id="airport">
+          <option value="T1">인천공항 제1터미널</option>
+          <option value="T2">인천공항 제2터미널</option>
+          <option value="GMP">김포공항</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="hour">탑승 시간</label>
+        <select id="hour"></select>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label for="pax">탑승 인원</label>
+        <select id="pax"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option></select>
+      </div>
+      <div class="field">
+        <label for="bags">캐리어 개수</label>
+        <select id="bags"><option>0</option><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select>
+      </div>
+    </div>
+    <button type="button" class="btn-primary" id="calc">예상 요금 보기</button>
+
+    <div id="result" hidden>
+      <div class="receipt">
+        <div class="title"><span>예상 영수증</span><span id="r-route"></span></div>
+        <div class="line"><span class="k">미터요금 (낮 기준)</span><span class="v" id="r-base"></span></div>
+        <div class="line" id="r-night-line"><span class="k" id="r-night-k">심야 할증</span><span class="v" id="r-night"></span></div>
+        <div class="line"><span class="k">통행료 (실비, 전기차 할인)</span><span class="v" id="r-toll"></span></div>
+        <div class="line total"><span class="k">예상 총액</span><span class="v" id="r-total"></span></div>
+      </div>
+      <p class="note" id="r-note"></p>
+      <div class="chips" id="r-chips"></div>
+    </div>
+    <div class="notice" id="warn" hidden></div>
+  </section>
+
+  <section class="card" aria-labelledby="h-book">
+    <h2 id="h-book">2. 예약 문의 보내기</h2>
+    <p class="note">아래 내용을 채우면 문자 또는 카카오톡으로 보낼 문의 내용이 완성됩니다. 확인 후 예상 총액과 배차 여부를 답장으로 알려드립니다.</p>
+    <form id="book" novalidate>
+      <div class="row">
+        <div class="field"><label for="name">성함</label><input id="name" autocomplete="name" placeholder="홍길동"></div>
+        <div class="field"><label for="phone">연락처</label><input id="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="010-0000-0000"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label for="date">탑승 날짜</label><input id="date" type="date"></div>
+        <div class="field"><label for="time">탑승 시간</label><input id="time" type="time"></div>
+      </div>
+      <div class="field"><label for="addr" id="addr-label">출발지 상세 주소 (아파트 동·호수 또는 건물명)</label><input id="addr" placeholder="예: 노원구 상계동 ○○아파트 101동 앞"></div>
+      <div class="field"><label for="flight">항공편명 (입국 픽업이면 꼭 적어주세요)</label><input id="flight" placeholder="예: KE123"></div>
+      <div class="field"><label for="memo">요청 사항</label><textarea id="memo" placeholder="예: 유모차 1개, 골프백 1개, 지하주차장 B2 3라인 앞 대기"></textarea></div>
+      <label class="check"><input type="checkbox" id="agree"><span>예약 상담을 위해 성함·연락처를 사용하는 데 동의합니다. 상담 종료 후 보관하지 않습니다.</span></label>
+      <div class="field">
+        <label>보낼 내용 미리보기</label>
+        <div class="preview" id="preview">위 항목을 채우면 여기에 문의 내용이 만들어집니다.</div>
+      </div>
+      <div class="btn-group">
+        <a class="btn btn-ink" id="btn-sms" href="#">문자로 보내기</a>
+        <a class="btn btn-ink" id="btn-kakao" href="#">카카오톡으로 보내기</a>
+        <button type="button" class="btn-ghost full" id="btn-copy">내용만 복사하기</button>
+      </div>
+      <p class="note">카카오톡 버튼은 내용을 복사한 뒤 채널 채팅창을 엽니다. 채팅창에 붙여넣어 보내주세요. 버튼이 동작하지 않으면 아래 번호로 직접 보내주셔도 됩니다.</p>
+      <div class="contact">
+        <span class="note">예약 전화·문자</span>
+        <span class="num" id="phone-text"></span>
+        <button type="button" class="btn-ghost" id="btn-copy-phone" style="justify-self:start">번호 복사</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card" aria-labelledby="h-rule">
+    <h2 id="h-rule">요금 안내</h2>
+    <dl class="rules">
+      <dt>인천공항</dt><dd>택시 미터기 요금 + 통행료 실비. 저희 차량은 전기차라 영종대교·인천대교 통행료 할인이 적용됩니다.</dd>
+      <dt>김포공항</dt><dd>출발지 거리에 따라 45,000~50,000원 확정요금.</dd>
+      <dt>먼 지역</dt><dd>평택·안성·포천·양주·여주·이천 등은 상담 때 미터기와 확정요금 중 편하신 쪽으로 안내합니다.</dd>
+      <dt>심야</dt><dd>22시~04시는 미터기 할증 그대로 받거나, 원하시면 상담 때 확정요금으로 정할 수 있습니다.</dd>
+      <dt>결제</dt><dd>카드·현금·계좌이체 모두 같은 금액. 어느 기사님이 모시든 요금은 같습니다.</dd>
+      <dt>차량</dt><dd>아이오닉5, 최대 4명. 5명 이상이거나 캐리어가 많으면 콜밴·대형택시로 안내해 드립니다.</dd>
+      <dt>입국 픽업</dt><dd>항공편이 늦어져도 대기료는 없습니다.</dd>
+    </dl>
+    <p class="note">서울 일반택시 요금 기준: 기본 4,800원(1.6km), 이후 131m 또는 30초당 100원. 심야 할증 22~23시 20%, 23~02시 40%, 02~04시 20%. 서울·인천·고양·김포·부천·광명은 공동사업구역이라 시외할증이 없습니다.</p>
+  </section>
+
+  <footer>표시 금액은 예약 확정요금이 아닌 예상 범위입니다. 실제 요금은 교통 상황·운행 시간·경로에 따라 달라지며 미터기와 영수증으로 확인하실 수 있습니다.</footer>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+// ===== 설정: 두 분 확인 후 바꿔 주세요 =====
+const CONFIG = {
+  brand: "부부공항택시",
+  phone: "010-0000-0000",          // 예약 전화·문자 번호
+  kakaoChannelUrl: "",             // 예: https://pf.kakao.com/_xxxxx/chat  (없으면 비워 두세요)
+  maxPax: 4,                       // 아이오닉5 탑승 인원 기준
+  maxBags: 3,                      // 아이오닉5 캐리어 기준 (확인 필요)
+  gimpoFixed: [45000, 50000],      // 김포공항 확정요금 범위
+  t2Extra: [5000, 8000],           // T2는 T1보다 추가되는 추정 범위 (실측 후 수정)
+  toll: [2000, 5900],              // 통행료 범위 (경로별), 전기차 할인 적용 전 기준
+};
+
+// ===== 예상 미터요금 데이터 (인천공항 T1, 낮 시간, 중형 미터, 통행료 별도) =====
+// r: [최소, 최대], src: 출처. null이면 "상담 후 안내". sub: 동별 세부 요금(선택).
+// 출처가 "실측"이 아닌 값은 경쟁 업체 공개 자료 기준이라 두 분의 실제 운행 기록으로 바꿔 주세요.
+const FARES = {
+  "서울": {
+    "강남구": {r:[55000,65000], src:"공개 자료"}, "강동구": {r:[61000,65000], src:"공개 자료"},
+    "강북구": {r:[54000,57000], src:"공개 자료"}, "강서구": {r:[38000,42000], src:"공개 자료"},
+    "관악구": null, "광진구": {r:[60000,64000], src:"공개 자료"}, "구로구": null, "금천구": null,
+    "노원구": {r:[62000,72000], src:"공개 자료"}, "도봉구": {r:[60000,63000], src:"공개 자료"},
+    "동대문구": {r:[59000,63000], src:"공개 자료"}, "동작구": null,
+    "마포구": {r:[43000,48000], src:"공개 자료"}, "서대문구": {r:[48000,52000], src:"공개 자료"},
+    "서초구": {r:[54000,63000], src:"공개 자료"}, "성동구": {r:[56000,60000], src:"공개 자료"},
+    "성북구": null, "송파구": {r:[56000,66000], src:"공개 자료"}, "양천구": null, "영등포구": null,
+    "용산구": {r:[42000,51000], src:"공개 자료"}, "은평구": null,
+    "종로구": {r:[45000,55000], src:"공개 자료"}, "중구": {r:[52000,56000], src:"공개 자료"},
+    "중랑구": {r:[61000,65000], src:"공개 자료"}
+  },
+  "경기": {
+    "고양시": null, "김포시": null, "부천시": null, "광명시": null,
+    "성남시 분당구": null, "성남시 (수정·중원)": null,
+    "하남시": {r:[69000,73000], src:"공개 자료"},
+    "용인시 수지구": {r:[60000,66000], src:"실측 1건 (62,900원)"},
+    "용인시 기흥구": {r:[62000,66000], src:"공개 자료"},
+    "용인시 처인구": null,
+    "수원시": {r:[70000,90000], src:"실측 1건 (90,400원, 정체 포함)"},
+    "화성시 (동탄)": null, "안산시": {r:[58000,65000], src:"공개 자료"}, "안양·군포·의왕": null,
+    "의정부시": {r:[61000,69000], src:"공개 자료 + 실측 1건", sub:{"가능동":[60000,62000],"신곡동":[61000,63000],"의정부동":[62000,64000],"장암동":[63000,65000],"호원동":[61000,65000],"금오동":[63000,65000],"고산동":[67000,69000],"민락동":[68000,70000]}},
+    "양주시": {r:[70000,76000], src:"공개 자료"},
+    "동두천시": {r:[75000,80000], src:"공개 자료"},
+    "포천시": {r:[72000,81000], src:"공개 자료", sub:{"송우리":[71000,73000],"선단동":[74000,76000],"신읍동":[80000,82000]}},
+    "남양주시": null, "구리시": null, "파주시": null,
+    "평택시": null, "안성시": null, "이천시": null, "여주시": null, "가평군": null
+  },
+  "인천": {
+    "연수구 (송도)": {r:[26000,29000], src:"송도 개인택시 공개 자료"},
+    "그 외 인천": null
+  }
+};
+
+const $ = id => document.getElementById(id);
+const won = n => n.toLocaleString("ko-KR") + "원";
+const range = (a) => won(a[0]) + " ~ " + won(a[1]);
+const round1k = n => Math.round(n / 1000) * 1000;
+
+function nightFactor(h) { if (h === 22) return 1.2; if (h === 23 || h === 0 || h === 1) return 1.4; if (h === 2 || h === 3) return 1.2; return 1.0; }
+
+function fillSelects() {
+  const sido = $("sido");
+  Object.keys(FARES).forEach(k => sido.add(new Option(k, k)));
+  fillGu();
+  const hour = $("hour");
+  for (let h = 0; h < 24; h++) {
+    const label = String(h).padStart(2, "0") + ":00" + (nightFactor(h) > 1 ? " (심야 할증)" : "");
+    hour.add(new Option(label, h));
+  }
+  hour.value = "5";
+}
+function fillGu() {
+  const gu = $("gu"); gu.innerHTML = "";
+  Object.keys(FARES[$("sido").value]).forEach(k => gu.add(new Option(k, k)));
+  fillDong();
+}
+function fillDong() {
+  const entry = FARES[$("sido").value][$("gu").value];
+  const f = $("dong-field"), d = $("dong"); d.innerHTML = "";
+  if (entry && entry.sub) {
+    d.add(new Option("전체 (평균)", ""));
+    Object.keys(entry.sub).forEach(k => d.add(new Option(k, k)));
+    f.hidden = false;
+  } else { f.hidden = true; }
+}
+
+function calc() {
+  const sido = $("sido").value, gu = $("gu").value, dong = $("dong").value;
+  const airport = $("airport").value, hour = Number($("hour").value);
+  const pax = Number($("pax").value), bags = Number($("bags").value);
+  const dir = document.querySelector('input[name="dir"]:checked').value;
+  const warn = $("warn"), res = $("result");
+  const entry = FARES[sido][gu];
+  const place = sido + " " + gu + (dong ? " " + dong : "");
+  const route = dir === "출국" ? place + " → " + airportName(airport) : airportName(airport) + " → " + place;
+  warn.hidden = true; res.hidden = true;
+
+  if (pax > CONFIG.maxPax || bags > CONFIG.maxBags) {
+    warn.textContent = `아이오닉5는 최대 ${CONFIG.maxPax}명, 캐리어 ${CONFIG.maxBags}개까지 편하게 모실 수 있습니다. 인원 ${pax}명 · 캐리어 ${bags}개는 콜밴 또는 대형택시로 안내해 드리니 아래 예약 문의로 보내주시면 차량과 요금을 알려드립니다.`;
+    warn.hidden = false; return;
+  }
+
+  if (airport === "GMP") {
+    showResult({route, base: CONFIG.gimpoFixed, night: null, toll: null, total: CONFIG.gimpoFixed,
+      note: "김포공항은 출발지 거리에 따른 확정요금입니다. 통행료는 없고, 정확한 금액은 상담 때 확정해 드립니다.",
+      chips: ["확정요금", "통행료 없음"]});
+    return;
+  }
+
+  if (!entry) {
+    warn.innerHTML = `<strong>${place}</strong>은 아직 실제 운행 자료가 쌓이지 않아 여기서는 금액을 보여드리지 못합니다. 아래 예약 문의로 출발지와 시간을 보내주시면 예상 총액을 바로 알려드립니다.`;
+    warn.hidden = false; return;
+  }
+
+  let base = (dong && entry.sub && entry.sub[dong]) ? entry.sub[dong].slice() : entry.r.slice();
+  const chips = [];
+  if (airport === "T2") { base = [base[0] + CONFIG.t2Extra[0], base[1] + CONFIG.t2Extra[1]]; chips.push("T2 추가분 포함 (추정)"); }
+  const nf = nightFactor(hour);
+  const night = nf > 1 ? [round1k(base[0] * (nf - 1)), round1k(base[1] * (nf - 1))] : null;
+  const toll = CONFIG.toll;
+  const total = [round1k(base[0] + (night ? night[0] : 0) + toll[0]), round1k(base[1] + (night ? night[1] : 0) + toll[1])];
+  chips.push("기준: " + entry.src);
+  if (nf > 1) chips.push(`심야 ${Math.round((nf - 1) * 100)}% 적용`);
+  showResult({route, base, night, nightPct: Math.round((nf - 1) * 100), toll, total,
+    note: "평균 미터요금 범위입니다. 출발 위치·시간대·교통 상황에 따라 달라지며, 통행료는 영수증 기준 실비(전기차 할인)로 받습니다." + (nf > 1 ? " 심야에는 상담 때 확정요금으로 정하실 수도 있습니다." : ""),
+    chips});
+}
+function airportName(a) { return a === "T1" ? "인천공항 T1" : a === "T2" ? "인천공항 T2" : "김포공항"; }
+function showResult(o) {
+  $("r-route").textContent = o.route;
+  $("r-base").textContent = range(o.base);
+  const nl = $("r-night-line");
+  if (o.night) { nl.hidden = false; $("r-night-k").textContent = `심야 할증 (+${o.nightPct}%)`; $("r-night").textContent = "+" + range(o.night); } else { nl.hidden = true; }
+  $("r-toll").textContent = o.toll ? "+" + range(o.toll) : "없음";
+  $("r-total").textContent = range(o.total);
+  $("r-note").textContent = o.note;
+  $("r-chips").innerHTML = o.chips.map(c => `<span class="pill">${c}</span>`).join("");
+  $("result").hidden = false;
+  window.lastEstimate = o.route + " " + range(o.total);
+  buildPreview();
+}
+
+// ===== 예약 문의 =====
+function buildPreview() {
+  const dir = document.querySelector('input[name="dir"]:checked').value;
+  const sido = $("sido").value, gu = $("gu").value, dong = $("dong").value;
+  const airport = airportName($("airport").value);
+  const v = id => $(id).value.trim();
+  const lines = [
+    `[${CONFIG.brand} 예약 문의]`,
+    `구분: ${dir === "출국" ? "출국 샌딩 (집 → 공항)" : "입국 픽업 (공항 → 집)"}`,
+    `성함: ${v("name") || "-"}`,
+    `연락처: ${v("phone") || "-"}`,
+    `날짜/시간: ${v("date") || "-"} ${v("time") || ""}`.trim(),
+    `${dir === "출국" ? "출발지" : "도착지"}: ${sido} ${gu}${dong ? " " + dong : ""} ${v("addr")}`.trim(),
+    `공항: ${airport}`,
+    `항공편: ${v("flight") || "-"}`,
+    `인원/캐리어: ${$("pax").value}명 / ${$("bags").value}개`,
+    `요청: ${v("memo") || "-"}`,
+  ];
+  if (window.lastEstimate) lines.push(`조회한 예상요금: ${window.lastEstimate}`);
+  const text = lines.join("\n");
+  $("preview").textContent = text;
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const num = CONFIG.phone.replace(/[^0-9+]/g, "");
+  $("btn-sms").href = `sms:${num}${isIOS ? "&" : "?"}body=${encodeURIComponent(text)}`;
+  $("addr-label").textContent = dir === "출국" ? "출발지 상세 주소 (아파트 동·호수 또는 건물명)" : "도착지 상세 주소 (집·호텔 주소)";
+  saveDraft();
+  return text;
+}
+function validate() {
+  const missing = [];
+  if (!$("name").value.trim()) missing.push("성함");
+  if (!$("phone").value.trim()) missing.push("연락처");
+  if (!$("date").value) missing.push("날짜");
+  if (!$("time").value) missing.push("시간");
+  if (!$("addr").value.trim()) missing.push("상세 주소");
+  if (!$("agree").checked) missing.push("동의 체크");
+  if (missing.length) { toast(missing.join(", ") + "을(를) 채워주세요"); return false; }
+  return true;
+}
+async function copyText(text, okMsg) {
+  try { await navigator.clipboard.writeText(text); toast(okMsg); return true; }
+  catch (e) {
+    const p = $("preview"); const r = document.createRange(); r.selectNodeContents(p);
+    const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+    toast("자동 복사가 안 되어 내용을 선택했습니다. 길게 눌러 복사해 주세요."); return false;
+  }
+}
+let toastTimer;
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 2600); }
+
+function saveDraft() {
+  try { const d = {}; ["name","phone","date","time","addr","flight","memo"].forEach(id => d[id] = $(id).value); localStorage.setItem("bubu-draft", JSON.stringify(d)); } catch (e) {}
+}
+function loadDraft() {
+  try { const d = JSON.parse(localStorage.getItem("bubu-draft") || "{}"); Object.keys(d).forEach(id => { if ($(id)) $(id).value = d[id]; }); } catch (e) {}
+}
+
+// ===== 초기화 =====
+fillSelects();
+loadDraft();
+$("phone-text").textContent = CONFIG.phone;
+$("sido").addEventListener("change", () => { fillGu(); buildPreview(); });
+$("gu").addEventListener("change", () => { fillDong(); buildPreview(); });
+$("dong").addEventListener("change", buildPreview);
+["airport","hour","pax","bags"].forEach(id => $(id).addEventListener("change", buildPreview));
+document.querySelectorAll('input[name="dir"]').forEach(r => r.addEventListener("change", buildPreview));
+["name","phone","date","time","addr","flight","memo"].forEach(id => $(id).addEventListener("input", buildPreview));
+$("calc").addEventListener("click", calc);
+$("book").addEventListener("submit", e => e.preventDefault());
+$("btn-sms").addEventListener("click", e => { if (!validate()) { e.preventDefault(); return; } buildPreview(); });
+$("btn-kakao").addEventListener("click", async e => {
+  e.preventDefault();
+  if (!validate()) return;
+  const text = buildPreview();
+  await copyText(text, "문의 내용을 복사했습니다. 카카오톡 채팅창에 붙여넣어 주세요.");
+  if (CONFIG.kakaoChannelUrl) window.open(CONFIG.kakaoChannelUrl, "_blank");
+  else toast("카카오톡 채널 주소가 아직 등록되지 않았습니다. 문자로 보내주세요.");
+});
+$("btn-copy").addEventListener("click", () => copyText(buildPreview(), "문의 내용을 복사했습니다."));
+$("btn-copy-phone").addEventListener("click", () => copyText(CONFIG.phone, "번호를 복사했습니다."));
+buildPreview();
+</script>
+
+</body>
+</html>
